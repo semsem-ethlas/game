@@ -251,6 +251,35 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Apply a type to a specific reward for a given user, randomizing slots and weight
+  function applyTypeToReward(user, rewardIdx, type, persist = true) {
+    const d = loadUserData(user) || {};
+    if (!Array.isArray(d.rewardWeights) || d.rewardWeights.length !== NUM_GAMES)
+      d.rewardWeights = Array.from({ length: NUM_GAMES }, () => 1);
+    if (!Array.isArray(d.slotWeights) || d.slotWeights.length !== NUM_GAMES)
+      d.slotWeights = Array.from({ length: NUM_GAMES }, () =>
+        Array(SLOTS_PER_GAME).fill(1)
+      );
+    if (!Array.isArray(d.rewardTypes) || d.rewardTypes.length !== NUM_GAMES)
+      d.rewardTypes = Array.from({ length: NUM_GAMES }, (_, i) =>
+        defaultTypeForIndex(i)
+      );
+    d.rewardTypes[rewardIdx] = type;
+    d.rewardWeights[rewardIdx] = typeFactor(type);
+    let slots = randomizeSlotsByType(type);
+    const [lowA, lowB] = pickTwoDistinctLowIndices();
+    slots[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
+    slots[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
+    d.slotWeights[rewardIdx] = slots;
+    if (persist) saveUserData(user, d);
+    if (user === appData.currentUser) {
+      appData.rewardTypes = d.rewardTypes;
+      appData.rewardWeights = d.rewardWeights;
+      appData.slotWeights = d.slotWeights;
+      saveData();
+    }
+  }
+
   function pickTwoDistinctLowIndices() {
     const indices = Array.from({ length: SLOTS_PER_GAME }, (_, i) => i);
     const a = indices.splice(Math.floor(Math.random() * indices.length), 1)[0];
