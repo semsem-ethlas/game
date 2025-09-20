@@ -8,6 +8,14 @@
     <link rel="manifest" href="./manifest.json?v=4" />
     <meta name="theme-color" content="#ffc107" />
   </head>
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(()=>{});
+  }
+  if ('caches' in window) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(()=>{});
+  }
+</script>
   <body>
     <div id="app-container">
       <header>
