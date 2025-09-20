@@ -560,8 +560,36 @@ document.addEventListener("DOMContentLoaded", () => {
       appData.duplicates = Array(NUM_GAMES).fill(0);
       saveData();
     }
-    initializeWeightsIfMissing();
     initializeTypesIfMissing();
+    initializeWeightsIfMissing();
+    // Migrate any legacy flat arrays (1..1,0.2,0.2) to randomized-by-type
+    (function migrateLegacy() {
+      try {
+        let changed = false;
+        for (let r = 0; r < NUM_GAMES; r++) {
+          const sw = appData.slotWeights[r];
+          if (!Array.isArray(sw) || sw.length !== SLOTS_PER_GAME) continue;
+          const isLegacy =
+            sw
+              .slice(0, SLOTS_PER_GAME - 2)
+              .every((v) => v === 1 || v === 1.0) &&
+            sw[SLOTS_PER_GAME - 2] === 0.2 &&
+            sw[SLOTS_PER_GAME - 1] === 0.2;
+          if (isLegacy) {
+            const type = appData.rewardTypes[r] || defaultTypeForIndex(r);
+            let arr = randomizeSlotsByType(type);
+            const lowA = SLOTS_PER_GAME - 2;
+            const lowB = SLOTS_PER_GAME - 1;
+            if (lowA >= 0) arr[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
+            if (lowB >= 0) arr[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
+            appData.slotWeights[r] = arr;
+            appData.rewardWeights[r] = typeFactor(type);
+            changed = true;
+          }
+        }
+        if (changed) saveData();
+      } catch (_) {}
+    })();
   }
 
   function saveData() {
@@ -660,25 +688,23 @@ document.addEventListener("DOMContentLoaded", () => {
       appData.slotWeights.some(
         (arr) => !Array.isArray(arr) || arr.length !== SLOTS_PER_GAME
       );
-    if (missingRewards) {
-      // First 5 high, middle 10 medium, last 5 low
-      appData.rewardWeights = Array.from({ length: NUM_GAMES }, (_, i) => {
-        if (i < 5) return 3.0; // high
-        if (i >= NUM_GAMES - 5) return 0.6; // low
-        return 1.2; // medium
-      });
-    }
-    if (missingSlots) {
+    if (missingRewards || missingSlots) {
+      initializeTypesIfMissing(true);
+      appData.rewardWeights = Array(NUM_GAMES).fill(0);
       appData.slotWeights = Array.from({ length: NUM_GAMES }, () =>
-        Array.from({ length: SLOTS_PER_GAME }, () => 1.0)
+        Array(SLOTS_PER_GAME).fill(0)
       );
-      // For each reward, make two slots very low (indices 6 and 7 as default)
       for (let r = 0; r < NUM_GAMES; r++) {
+        const type = appData.rewardTypes[r] || defaultTypeForIndex(r);
+        appData.rewardWeights[r] = typeFactor(type);
+        let slots = randomizeSlotsByType(type);
         const lowA = SLOTS_PER_GAME - 2;
         const lowB = SLOTS_PER_GAME - 1;
-        if (lowA >= 0) appData.slotWeights[r][lowA] = 0.2;
-        if (lowB >= 0) appData.slotWeights[r][lowB] = 0.2;
+        if (lowA >= 0) slots[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
+        if (lowB >= 0) slots[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
+        appData.slotWeights[r] = slots;
       }
+      saveData();
     }
   }
 
@@ -727,14 +753,15 @@ document.addEventListener("DOMContentLoaded", () => {
         soundTheme: "arcade",
         duplicates: Array(NUM_GAMES).fill(0),
         rewardWeights: Array.from({ length: NUM_GAMES }, (_, i) =>
-          i < 5 ? 3.0 : i >= NUM_GAMES - 5 ? 0.6 : 1.2
+          typeFactor(defaultTypeForIndex(i))
         ),
-        slotWeights: Array.from({ length: NUM_GAMES }, () => {
-          const arr = Array(SLOTS_PER_GAME).fill(1.0);
+        slotWeights: Array.from({ length: NUM_GAMES }, (_, i) => {
+          const type = defaultTypeForIndex(i);
+          let arr = randomizeSlotsByType(type);
           const lowA = SLOTS_PER_GAME - 2;
           const lowB = SLOTS_PER_GAME - 1;
-          if (lowA >= 0) arr[lowA] = 0.2;
-          if (lowB >= 0) arr[lowB] = 0.2;
+          if (lowA >= 0) arr[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
+          if (lowB >= 0) arr[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
           return arr;
         }),
         rewardTypes: Array.from({ length: NUM_GAMES }, (_, i) =>
