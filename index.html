@@ -4,18 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reward Album</title>
-    <link rel="stylesheet" href="style.css?v=4" />
-    <link rel="manifest" href="./manifest.json?v=4" />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="stylesheet" href="style.css?v=6" />
+    <link rel="manifest" href="./manifest.json?v=6" />
     <meta name="theme-color" content="#ffc107" />
   </head>
-  <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(()=>{});
-  }
-  if ('caches' in window) {
-    caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(()=>{});
-  }
-</script>
   <body>
     <div id="app-container">
       <header>
@@ -352,36 +350,31 @@
       </div>
     </div>
 
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=6"></script>
     <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", function () {
+      // Work around GitHub Pages SW caching by fully disabling SW and caches at runtime
+      (function () {
+        if ("serviceWorker" in navigator) {
           navigator.serviceWorker
-            .register("./sw.js?v=4", { scope: "./" })
-            .then(function (reg) {
-              // Auto-reload when a new service worker takes control
-              navigator.serviceWorker.addEventListener(
-                "controllerchange",
-                function () {
-                  location.reload();
-                }
-              );
+            .getRegistrations()
+            .then(function (rs) {
+              rs.forEach(function (r) {
+                r.unregister();
+              });
             })
             .catch(function () {});
-          // Proactively remove old caches in page context
-          if ("caches" in window) {
-            caches.keys().then(function (keys) {
-              keys
-                .filter(function (k) {
-                  return k.startsWith("rewards-pwa-") && k !== "rewards-pwa-v3";
-                })
-                .forEach(function (k) {
-                  caches.delete(k);
-                });
-            });
-          }
-        });
-      }
+        }
+        if ("caches" in window) {
+          caches
+            .keys()
+            .then(function (keys) {
+              keys.forEach(function (k) {
+                caches.delete(k);
+              });
+            })
+            .catch(function () {});
+        }
+      })();
     </script>
   </body>
 </html>
