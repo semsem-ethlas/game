@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reward Album</title>
     <link rel="stylesheet" href="style.css?v=3" />
-    <link rel="manifest" href="manifest.json?v=3" />
+    <link rel="manifest" href="./manifest.json?v=3" />
     <meta name="theme-color" content="#ffc107" />
   </head>
   <body>
@@ -349,7 +349,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
           navigator.serviceWorker
-            .register("sw.js?v=3", { scope: "./" })
+            .register("./sw.js?v=3", { scope: "./" })
             .then(function (reg) {
               // Auto-reload when a new service worker takes control
               navigator.serviceWorker.addEventListener(
