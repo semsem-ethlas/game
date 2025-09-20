@@ -214,6 +214,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Helpers used by weight initialization and backups
+  function typeFactor(type) {
+    switch (type) {
+      case "easy":
+        return 3.0;
+      case "medium":
+        return 2.0;
+      case "normal":
+        return 1.2;
+      case "hard":
+        return 0.7;
+      case "superhard":
+        return 0.4;
+      default:
+        return 1.0;
+    }
+  }
+
+  function randomizeSlotsByType(type) {
+    const factor = typeFactor(type);
+    return Array.from({ length: SLOTS_PER_GAME }, () => {
+      let randMul = 1;
+      if (type === "easy") randMul = 0.9 + Math.random() * 0.7; // 0.9..1.6
+      else if (type === "medium")
+        randMul = 0.9 + Math.random() * 0.5; // 0.9..1.4
+      else if (type === "normal")
+        randMul = 0.9 + Math.random() * 0.4; // 0.9..1.3
+      else if (type === "hard") randMul = 0.7 + Math.random() * 0.4; // 0.7..1.1
+      else randMul = 0.5 + Math.random() * 0.4; // superhard 0.5..0.9
+      return Math.max(0.05, factor * randMul);
+    });
+  }
+
   function initFallbackAudio() {
     if (fallbackNewAudio && fallbackDupAudio) return;
     try {
