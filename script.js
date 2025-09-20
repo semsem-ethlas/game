@@ -139,6 +139,10 @@ document.addEventListener("DOMContentLoaded", () => {
     rewardTypes: Array(NUM_GAMES).fill("normal"),
     // Rewards that are one-time (hard/superhard) and have been won permanently per user
     permanentWins: [],
+    // For each reward, store two distinct slot indices that are very low (randomized)
+    lowSlotIndices: Array(NUM_GAMES)
+      .fill()
+      .map(() => []),
   };
 
   /**
@@ -245,6 +249,13 @@ document.addEventListener("DOMContentLoaded", () => {
       else randMul = 0.5 + Math.random() * 0.4; // superhard 0.5..0.9
       return Math.max(0.05, factor * randMul);
     });
+  }
+
+  function pickTwoDistinctLowIndices() {
+    const indices = Array.from({ length: SLOTS_PER_GAME }, (_, i) => i);
+    const a = indices.splice(Math.floor(Math.random() * indices.length), 1)[0];
+    const b = indices.splice(Math.floor(Math.random() * indices.length), 1)[0];
+    return [a, b];
   }
 
   function initFallbackAudio() {
@@ -611,10 +622,9 @@ document.addEventListener("DOMContentLoaded", () => {
           if (isLegacy) {
             const type = appData.rewardTypes[r] || defaultTypeForIndex(r);
             let arr = randomizeSlotsByType(type);
-            const lowA = SLOTS_PER_GAME - 2;
-            const lowB = SLOTS_PER_GAME - 1;
-            if (lowA >= 0) arr[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
-            if (lowB >= 0) arr[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
+            const [lowA, lowB] = pickTwoDistinctLowIndices();
+            arr[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
+            arr[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
             appData.slotWeights[r] = arr;
             appData.rewardWeights[r] = typeFactor(type);
             changed = true;
@@ -731,10 +741,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const type = appData.rewardTypes[r] || defaultTypeForIndex(r);
         appData.rewardWeights[r] = typeFactor(type);
         let slots = randomizeSlotsByType(type);
-        const lowA = SLOTS_PER_GAME - 2;
-        const lowB = SLOTS_PER_GAME - 1;
-        if (lowA >= 0) slots[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
-        if (lowB >= 0) slots[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
+        const [lowA, lowB] = pickTwoDistinctLowIndices();
+        slots[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
+        slots[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
         appData.slotWeights[r] = slots;
       }
       saveData();
@@ -791,10 +800,9 @@ document.addEventListener("DOMContentLoaded", () => {
         slotWeights: Array.from({ length: NUM_GAMES }, (_, i) => {
           const type = defaultTypeForIndex(i);
           let arr = randomizeSlotsByType(type);
-          const lowA = SLOTS_PER_GAME - 2;
-          const lowB = SLOTS_PER_GAME - 1;
-          if (lowA >= 0) arr[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
-          if (lowB >= 0) arr[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
+          const [lowA, lowB] = pickTwoDistinctLowIndices();
+          arr[lowA] = Math.max(0.01, 0.05 * typeFactor(type));
+          arr[lowB] = Math.max(0.01, 0.05 * typeFactor(type));
           return arr;
         }),
         rewardTypes: Array.from({ length: NUM_GAMES }, (_, i) =>
