@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reward Album</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#ffc107" />
+  </head>
+  <body>
+    <div id="app-container">
+      <header>
+        <h1>Reward Album</h1>
+        <div id="points-container">
+          <p>Points: <span id="points-display">0</span></p>
+        </div>
+        <div id="user-indicator">
+          User: <span id="current-user">guest</span>
+        </div>
+        <button id="album-button">📖 Album</button>
+        <button id="admin-button">⚙️</button>
+      </header>
+
+      <main id="album-grid"></main>
+      <section id="album-page" style="display: none">
+        <div class="album-page-header">
+          <button id="back-to-main">← Back</button>
+          <h2>Sticker Album</h2>
+        </div>
+        <div id="album-mosaics"></div>
+      </section>
+
+      <div id="draw-coupon-container">
+        <button id="draw-coupon-button">Draw Coupon</button>
+      </div>
+
+      <!-- Admin Modal -->
+      <div id="admin-modal" class="modal">
+        <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h2>Admin Mode</h2>
+          <div id="password-prompt">
+            <input
+              type="password"
+              id="admin-password"
+              placeholder="Enter password"
+            />
+            <button id="submit-password">Enter</button>
+          </div>
+          <div id="admin-panel" style="display: none">
+            <h3>Manage User</h3>
+            <select id="admin-target-user">
+              <option value="moka">moka</option>
+              <option value="aser">aser</option>
+              <option value="sila">sila</option>
+            </select>
+            <hr />
+            <h3>Add Points</h3>
+            <input type="number" id="points-to-add" min="1" value="1" />
+            <button id="add-points-button">Add</button>
+            <hr />
+            <button id="switch-user-button">Logout / Switch User</button>
+            <hr />
+            <h3>Notifications</h3>
+            <div
+              id="admin-notifications"
+              style="
+                max-height: 160px;
+                overflow-y: auto;
+                text-align: left;
+                background: #fff;
+                border: 1px solid #ccc;
+                padding: 8px;
+                border-radius: 6px;
+              "
+            ></div>
+            <button id="clear-notifications">Clear Notifications</button>
+            <hr />
+            <h3>Backups</h3>
+            <div
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <select id="backup-list" style="min-width: 220px"></select>
+              <button id="restore-backup-button">Restore Selected</button>
+              <button id="backup-now-button">Backup Now</button>
+            </div>
+            <small>Daily automatic backups run once per day per user.</small>
+            <hr />
+            <h3>Passwords</h3>
+            <div
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <label for="password-user-select">User</label>
+              <select id="password-user-select">
+                <option value="moka">moka</option>
+                <option value="aser">aser</option>
+                <option value="sila">sila</option>
+              </select>
+              <input
+                id="password-user-new"
+                type="password"
+                placeholder="New user password"
+              />
+              <button id="set-user-password">Set User Password</button>
+            </div>
+            <div
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+                margin-top: 8px;
+              "
+            >
+              <input
+                id="admin-password-new"
+                type="password"
+                placeholder="New admin password"
+              />
+              <button id="set-admin-password">Set Admin Password</button>
+            </div>
+            <hr />
+            <h3>Sound Theme</h3>
+            <select id="sound-theme-select">
+              <option value="arcade">Arcade</option>
+              <option value="8bit">8-bit</option>
+              <option value="marimba">Marimba</option>
+            </select>
+            <hr />
+            <h3>Weights (per user)</h3>
+            <div
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <label for="weights-reward-select">Reward</label>
+              <select id="weights-reward-select"></select>
+              <label for="reward-type-select">Type</label>
+              <select id="reward-type-select">
+                <option value="easy">easy</option>
+                <option value="medium">medium</option>
+                <option value="normal">normal</option>
+                <option value="hard">hard</option>
+                <option value="superhard">superhard</option>
+              </select>
+              <label for="reward-weight-input">Reward weight</label>
+              <input
+                id="reward-weight-input"
+                type="number"
+                step="0.1"
+                min="0"
+                style="width: 100px"
+              />
+              <button id="slots-reroll">Re-roll slots</button>
+            </div>
+            <div
+              style="
+                display: grid;
+                grid-template-columns: repeat(4, minmax(60px, 1fr));
+                gap: 6px;
+                margin-top: 8px;
+              "
+            >
+              <input
+                id="slot-weight-0"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="S1"
+              />
+              <input
+                id="slot-weight-1"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="S2"
+              />
+              <input
+                id="slot-weight-2"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="S3"
+              />
+              <input
+                id="slot-weight-3"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="S4"
+              />
+              <input
+                id="slot-weight-4"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="S5"
+              />
+              <input
+                id="slot-weight-5"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="S6"
+              />
+              <input
+                id="slot-weight-6"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="S7"
+              />
+              <input
+                id="slot-weight-7"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="S8"
+              />
+            </div>
+            <div style="margin-top: 8px; display: flex; gap: 8px">
+              <button id="weights-save">Save Weights</button>
+              <button id="weights-reset">Reset Defaults</button>
+            </div>
+            <div
+              style="
+                margin-top: 8px;
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <label>Presets:</label>
+              <button id="preset-easy">Easy</button>
+              <button id="preset-normal">Normal</button>
+              <button id="preset-hard">Hard</button>
+            </div>
+            <div
+              style="
+                margin-top: 8px;
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <label for="boost-reward-select">Boost reward</label>
+              <select id="boost-reward-select"></select>
+              <label for="boost-mult-input">x</label>
+              <input
+                id="boost-mult-input"
+                type="number"
+                step="0.1"
+                min="1"
+                value="2"
+                style="width: 80px"
+              />
+              <label for="boost-draws-input">for draws</label>
+              <input
+                id="boost-draws-input"
+                type="number"
+                min="1"
+                value="10"
+                style="width: 80px"
+              />
+              <button id="apply-boost">Apply Boost</button>
+              <button id="clear-boost">Clear Boost</button>
+            </div>
+            <small
+              >Tip: First 5 rewards are default high weight, last 5 low. Two
+              slots default very low.</small
+            >
+            <hr />
+            <h3>Reset Game</h3>
+            <select id="game-to-reset">
+              <!-- Options will be populated by JS -->
+            </select>
+            <button id="reset-game-button">Reset</button>
+            <hr />
+            <h3>Test Sounds</h3>
+            <button id="test-new-sound">Test New Card Sound</button>
+            <button id="test-duplicate-sound">Test Duplicate Sound</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Login Modal -->
+      <div id="login-modal" class="modal">
+        <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h2>Login</h2>
+          <div>
+            <label for="user-select">User</label>
+            <select id="user-select">
+              <option value="moka">moka</option>
+              <option value="aser">aser</option>
+              <option value="sila">sila</option>
+            </select>
+            <input
+              type="password"
+              id="user-password"
+              placeholder="Enter password"
+            />
+            <button id="login-submit">Login</button>
+            <hr />
+            <button id="open-admin-button">Open Admin Panel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reward Modal -->
+      <div id="reward-modal" class="modal">
+        <div class="modal-content">
+          <span class="close-button">&times;</span>
+          <h2 id="reward-title">Congratulations!</h2>
+          <p id="reward-message">You've won a new reward!</p>
+          <img
+            id="reward-image"
+            src=""
+            alt="Reward Image"
+            style="
+              width: 100%;
+              max-width: 200px;
+              margin: 0 auto;
+              display: block;
+            "
+          />
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("sw.js").catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>
