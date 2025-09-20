@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reward Album</title>
-    <link rel="stylesheet" href="style.css" />
-    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="style.css?v=3" />
+    <link rel="manifest" href="./manifest.json?v=3" />
     <meta name="theme-color" content="#ffc107" />
   </head>
   <body>
@@ -344,11 +344,34 @@
       </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=3"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
-          navigator.serviceWorker.register("sw.js").catch(function () {});
+          navigator.serviceWorker
+            .register("./sw.js?v=3", { scope: "./" })
+            .then(function (reg) {
+              // Auto-reload when a new service worker takes control
+              navigator.serviceWorker.addEventListener(
+                "controllerchange",
+                function () {
+                  location.reload();
+                }
+              );
+            })
+            .catch(function () {});
+          // Proactively remove old caches in page context
+          if ("caches" in window) {
+            caches.keys().then(function (keys) {
+              keys
+                .filter(function (k) {
+                  return k.startsWith("rewards-pwa-") && k !== "rewards-pwa-v3";
+                })
+                .forEach(function (k) {
+                  caches.delete(k);
+                });
+            });
+          }
         });
       }
     </script>

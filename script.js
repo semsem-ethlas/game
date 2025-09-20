@@ -191,6 +191,29 @@ document.addEventListener("DOMContentLoaded", () => {
   let fallbackNewAudio = null;
   let fallbackDupAudio = null;
 
+  // Ensure type helpers exist before first load
+  function defaultTypeForIndex(idx) {
+    const i = idx + 1;
+    if (i >= 1 && i <= 7) return "easy";
+    if (i === 8) return "medium";
+    if (i >= 9 && i <= 11) return "easy";
+    if (i >= 12 && i <= 14) return "normal";
+    if (i >= 15 && i <= 18) return "hard";
+    return "superhard";
+  }
+
+  function initializeTypesIfMissing(force = false) {
+    const missing =
+      force ||
+      !Array.isArray(appData.rewardTypes) ||
+      appData.rewardTypes.length !== NUM_GAMES;
+    if (missing) {
+      appData.rewardTypes = Array.from({ length: NUM_GAMES }, (_, i) =>
+        defaultTypeForIndex(i)
+      );
+    }
+  }
+
   function initFallbackAudio() {
     if (fallbackNewAudio && fallbackDupAudio) return;
     try {
