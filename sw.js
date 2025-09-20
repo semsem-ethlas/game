@@ -1,4 +1,4 @@
-const CACHE_NAME = "rewards-pwa-v3";
+const CACHE_NAME = "rewards-pwa-v4";
 const OFFLINE_URLS = [
   "index.html",
   "style.css",
@@ -62,7 +62,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
+    caches.match(request, { ignoreSearch: true }).then((cached) => {
       const network = fetch(request)
         .then((response) => {
           const copy = response.clone();
