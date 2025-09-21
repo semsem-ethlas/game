@@ -35,6 +35,7 @@
           <h2>Sticker Album</h2>
         </div>
         <div id="album-mosaics"></div>
+        <div id="album-history" style="margin-top: 1rem"></div>
       </section>
 
       <div id="draw-coupon-container">
@@ -311,16 +312,11 @@
           <span class="close-button">&times;</span>
           <h2>Login</h2>
           <div>
-            <label for="user-select">User</label>
-            <select id="user-select">
-              <option value="moka">moka</option>
-              <option value="aser">aser</option>
-              <option value="sila">sila</option>
-            </select>
+            <label for="user-name">Enter your name</label>
             <input
-              type="password"
-              id="user-password"
-              placeholder="Enter password"
+              type="text"
+              id="user-name"
+              placeholder="moka / aser / sila"
             />
             <button id="login-submit">Login</button>
             <hr />

@@ -143,6 +143,14 @@ document.addEventListener("DOMContentLoaded", () => {
     lowSlotIndices: Array(NUM_GAMES)
       .fill()
       .map(() => []),
+    // Catalog of completed rewards (history per user)
+    catalog: [],
+    // Total points spent by this user (for completion thresholds)
+    pointsSpent: 0,
+    // Programmatic slot blocks (hidden): per-reward blocked slot index for thresholds
+    thresholdBlockedSlots: Array(NUM_GAMES).fill(null),
+    // Programmatic slot blocks (hidden): per-reward blocked slot index for one-time wins
+    permanentBlockedSlots: Array(NUM_GAMES).fill(null),
   };
 
   /**
@@ -157,6 +165,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const albumButton = document.getElementById("album-button");
   const albumPage = document.getElementById("album-page");
   const albumMosaics = document.getElementById("album-mosaics");
+  const albumHistory = document.getElementById("album-history");
+  let toastContainer = null;
+
+  function friendlyName() {
+    const n = appData.currentUser || "player";
+    return n.charAt(0).toUpperCase() + n.slice(1);
+  }
+
+  function ensureToastContainer() {
+    if (!toastContainer) {
+      toastContainer = document.createElement("div");
+      toastContainer.id = "toast-container";
+      document.body.appendChild(toastContainer);
+    }
+  }
+
+  function showToast(message, variant = "info") {
+    ensureToastContainer();
+    const t = document.createElement("div");
+    t.className = `toast ${variant}`;
+    t.textContent = message;
+    toastContainer.appendChild(t);
+    requestAnimationFrame(() => t.classList.add("show"));
+    setTimeout(() => {
+      t.classList.remove("show");
+      setTimeout(() => t.remove(), 300);
+    }, 2200);
+  }
   const backToMain = document.getElementById("back-to-main");
   const adminModal = document.getElementById("admin-modal");
   const rewardModal = document.getElementById("reward-modal");
@@ -581,6 +617,48 @@ document.addEventListener("DOMContentLoaded", () => {
    */
   function initializeApp() {
     loadData();
+    // Load shared configuration overrides (assets/config.json) and apply per user
+    fetch("./assets/config.json?ts=" + Date.now())
+      .then((r) => r.json())
+      .then((cfg) => {
+        try {
+          const u = appData.currentUser;
+          const uc = cfg && cfg.users && cfg.users[u];
+          if (uc) {
+            if (
+              Array.isArray(uc.rewardTypes) &&
+              uc.rewardTypes.length === NUM_GAMES
+            ) {
+              appData.rewardTypes = uc.rewardTypes.slice();
+              saveData();
+              initializeWeightsIfMissing(true);
+            }
+          }
+          // Admin password from config: prefer plain (base64) -> hash, else use provided hash
+          if (cfg) {
+            if (
+              typeof cfg.adminPasswordPlainBase64 === "string" &&
+              cfg.adminPasswordPlainBase64.length > 0
+            ) {
+              try {
+                const plain = atob(cfg.adminPasswordPlainBase64);
+                // Hash with our salt and store
+                sha256Hex(ADMIN_SALT + plain)
+                  .then((hex) => {
+                    localStorage.setItem(ADMIN_HASH_KEY, hex);
+                  })
+                  .catch(() => {});
+              } catch (_) {}
+            } else if (
+              typeof cfg.adminPasswordHash === "string" &&
+              cfg.adminPasswordHash.length > 0
+            ) {
+              localStorage.setItem(ADMIN_HASH_KEY, cfg.adminPasswordHash);
+            }
+          }
+        } catch (_) {}
+      })
+      .catch(() => {});
     prepareAllRewardTiles().finally(() => {
       renderAlbum();
       updatePointsDisplay();
@@ -676,6 +754,10 @@ document.addEventListener("DOMContentLoaded", () => {
         slotWeights: appData.slotWeights,
         rewardTypes: appData.rewardTypes,
         permanentWins: appData.permanentWins,
+        catalog: appData.catalog,
+        pointsSpent: appData.pointsSpent,
+        thresholdBlockedSlots: appData.thresholdBlockedSlots,
+        permanentBlockedSlots: appData.permanentBlockedSlots,
       })
     );
     localStorage.setItem("rewardAlbumData:lastUser", appData.currentUser);
@@ -728,6 +810,12 @@ document.addEventListener("DOMContentLoaded", () => {
       appData.slotWeights = parsed.slotWeights || appData.slotWeights;
       appData.rewardTypes = parsed.rewardTypes || appData.rewardTypes;
       appData.permanentWins = parsed.permanentWins || [];
+      appData.catalog = parsed.catalog || [];
+      appData.pointsSpent = parsed.pointsSpent || 0;
+      appData.thresholdBlockedSlots =
+        parsed.thresholdBlockedSlots || Array(NUM_GAMES).fill(null);
+      appData.permanentBlockedSlots =
+        parsed.permanentBlockedSlots || Array(NUM_GAMES).fill(null);
     } else {
       appData.points = 0;
       appData.games = Array(NUM_GAMES)
@@ -741,6 +829,10 @@ document.addEventListener("DOMContentLoaded", () => {
       initializeWeightsIfMissing(true);
       initializeTypesIfMissing(true);
       appData.permanentWins = [];
+      appData.catalog = [];
+      appData.pointsSpent = 0;
+      appData.thresholdBlockedSlots = Array(NUM_GAMES).fill(null);
+      appData.permanentBlockedSlots = Array(NUM_GAMES).fill(null);
     }
     updatePointsDisplay();
     renderAlbum();
@@ -887,11 +979,40 @@ document.addEventListener("DOMContentLoaded", () => {
       const card = document.createElement("div");
       card.className = `game-card ${game.completed ? "completed" : ""}`;
       const filledCount = game.slots.reduce((acc, v) => acc + (v ? 1 : 0), 0);
+      const userData = loadUserData(appData.currentUser) || {};
+      const types = userData.rewardTypes || appData.rewardTypes || [];
+      const t = types[index] || defaultTypeForIndex(index);
+      const wins = userData.permanentWins || appData.permanentWins || [];
+      const spent = appData.pointsSpent || 0;
+      const threshold =
+        t === "superhard"
+          ? 2000
+          : t === "hard"
+          ? 1000
+          : t === "normal"
+          ? 500
+          : 0;
+      const needs = Math.max(0, threshold - spent);
+      const isLockedThreshold =
+        filledCount === SLOTS_PER_GAME &&
+        !game.completed &&
+        threshold > 0 &&
+        spent < threshold;
+      const isLockedOneTime =
+        filledCount === SLOTS_PER_GAME &&
+        !game.completed &&
+        (t === "hard" || t === "superhard") &&
+        wins.includes(index);
+
       const titleText = game.completed
         ? REWARDS[index] || `Reward ${index + 1}`
         : `Mystery (${filledCount}/${SLOTS_PER_GAME})`;
       const badge = game.completed
         ? '<span class="badge-completed">Completed</span>'
+        : isLockedOneTime
+        ? '<span class="badge-locked">One-time</span>'
+        : isLockedThreshold
+        ? `<span class="badge-locked">Locked · need ${needs}</span>`
         : "";
       card.innerHTML = `
                 <h3>${titleText} ${badge}</h3>
@@ -941,19 +1062,41 @@ document.addEventListener("DOMContentLoaded", () => {
               (src, i) => `
             <div class="tile">
               ${src ? `<img src=\"${src}\" alt=\"tile\"/>` : ""}
-            </div>
-          `
+                        </div>
+                    `
             )
             .join("")}
-        </div>
-      `;
+                </div>
+            `;
       albumMosaics.appendChild(wrapper);
     });
+    // Render history list
+    if (albumHistory) {
+      const entries = Array.isArray(appData.catalog)
+        ? appData.catalog.slice(0, 20)
+        : [];
+      albumHistory.innerHTML = entries.length
+        ? `<h4>Recent Completions</h4>` +
+          entries
+            .map((e) => {
+              const d = new Date(e.ts).toLocaleString();
+              const name = REWARDS[e.reward] || `Reward ${e.reward + 1}`;
+              return `<div>✔️ ${name} — ${d}</div>`;
+            })
+            .join("")
+        : "";
+    }
   }
 
   function updatePointsDisplay() {
     pointsDisplay.textContent = appData.points;
-    drawCouponButton.disabled = appData.points <= 0;
+    // Keep button clickable to show friendly "no points" message
+    if (drawCouponButton) {
+      drawCouponButton.disabled = false;
+      drawCouponButton.classList.toggle("no-points", appData.points <= 0);
+      drawCouponButton.title =
+        appData.points <= 0 ? "No points" : "Draw a coupon";
+    }
   }
 
   function populateResetGameSelect() {
@@ -980,10 +1123,21 @@ document.addEventListener("DOMContentLoaded", () => {
    * ====================================================================
    */
   function drawCoupon() {
-    if (appData.points <= 0) return;
+    if (appData.points <= 0) {
+      showToast(
+        `${friendlyName()}, no points left. Ask Admin to add some!`,
+        "nopoints"
+      );
+      if (drawCouponButton) {
+        drawCouponButton.classList.add("nopoints");
+        setTimeout(() => drawCouponButton.classList.remove("nopoints"), 700);
+      }
+      return;
+    }
     if (!appData.audioUnlocked) initAudio();
 
     appData.points--;
+    appData.pointsSpent = (appData.pointsSpent || 0) + 1;
 
     // Weighted selection across ALL rewards (completed or not)
     initializeWeightsIfMissing();
@@ -994,8 +1148,7 @@ document.addEventListener("DOMContentLoaded", () => {
     {
       const rWeights = getEffectiveRewardWeights();
       gameIndex = weightedPick(rWeights);
-      const slotWeights =
-        appData.slotWeights[gameIndex] || Array(SLOTS_PER_GAME).fill(1);
+      const slotWeights = getEffectiveSlotWeightsForReward(gameIndex);
       slotIndex = weightedPick(slotWeights);
 
       if (appData.games[gameIndex].slots[slotIndex]) {
@@ -1003,9 +1156,59 @@ document.addEventListener("DOMContentLoaded", () => {
         wasDuplicate = true;
         appData.duplicates[gameIndex] += 1;
         playDuplicate();
+        showToast(
+          `Almost there, ${friendlyName()} — duplicate tile. Try again!`,
+          "duplicate"
+        );
       } else {
-        appData.games[gameIndex].slots[slotIndex] = true;
-        playNewCard();
+        // One-time win guard for hard/superhard after a permanent win
+        const d = loadUserData(appData.currentUser) || {};
+        const types = d.rewardTypes || appData.rewardTypes || [];
+        const t = types[gameIndex] || defaultTypeForIndex(gameIndex);
+        const wins = d.permanentWins || appData.permanentWins || [];
+        const isOneTime = t === "hard" || t === "superhard";
+        const alreadyWon = wins.includes(gameIndex);
+        const filled = appData.games[gameIndex].slots.reduce(
+          (acc, v) => acc + (v ? 1 : 0),
+          0
+        );
+        const willComplete = filled + 1 === SLOTS_PER_GAME;
+
+        // Threshold enforcement by type (normal 500, hard 1000, superhard 2000)
+        const spent = appData.pointsSpent || 0;
+        const threshold =
+          t === "superhard"
+            ? 2000
+            : t === "hard"
+            ? 1000
+            : t === "normal"
+            ? 500
+            : 0;
+        const belowThreshold = spent < threshold;
+
+        if (
+          (isOneTime && alreadyWon && willComplete) ||
+          (willComplete && belowThreshold)
+        ) {
+          // Do not allow re-completion: treat as duplicate feedback
+          wasDuplicate = true;
+          appData.duplicates[gameIndex] += 1;
+          playDuplicate();
+          const msg =
+            isOneTime && alreadyWon
+              ? `Nice try, ${friendlyName()} — this reward is one-time only.`
+              : `Keep going, ${friendlyName()} — need ${
+                  threshold - spent
+                } more points for ${t} win.`;
+          showToast(msg, "duplicate");
+        } else {
+          appData.games[gameIndex].slots[slotIndex] = true;
+          playNewCard();
+          showToast(
+            `Great find, ${friendlyName()}! New tile unlocked.`,
+            "success"
+          );
+        }
         // emoji pop at that slot after render
       }
     }
@@ -1028,9 +1231,21 @@ document.addEventListener("DOMContentLoaded", () => {
         saveUserData(appData.currentUser, d);
         appData.permanentWins = d.permanentWins.slice();
       }
+      // Add to catalog history
+      appData.catalog = Array.isArray(appData.catalog) ? appData.catalog : [];
+      appData.catalog.unshift({ reward: gameIndex, ts: Date.now() });
+      saveData();
+      // Auto-reset the completed reward immediately for the user (so catalog shows completed, but slots reset)
+      appData.games[gameIndex].slots.fill(false);
+      appData.games[gameIndex].completed = false;
+      saveData();
       // Notify admin
       const rewardName = REWARDS[gameIndex] || `Reward ${gameIndex + 1}`;
       pushAdminNotification(`${appData.currentUser} completed: ${rewardName}`);
+      showToast(
+        `Bravo, ${friendlyName()}! You completed ${rewardName}!`,
+        "complete"
+      );
       showRewardModal(gameIndex);
     }
 
@@ -1075,9 +1290,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const hint = document.createElement("div");
     hint.className = "fly-instruction";
-    hint.textContent = `${
-      wasDuplicate ? "Duplicate" : "New card"
-    } — Tap to place`;
+    hint.textContent = wasDuplicate
+      ? `Duplicate tile, ${friendlyName()} — Tap to place`
+      : `Nice pick, ${friendlyName()} — Tap to place`;
+    // Ensure correct position immediately to avoid flicker
+    hint.style.position = "fixed";
+    hint.style.left = "50%";
+    hint.style.bottom = "10%";
+    hint.style.transform = "translateX(-50%)";
 
     overlay.appendChild(img);
     overlay.appendChild(hint);
@@ -1235,24 +1455,30 @@ document.addEventListener("DOMContentLoaded", () => {
   if (currentUserEl && loginModal) {
     currentUserEl.parentElement.addEventListener("click", () => {
       loginModal.style.display = "flex";
-      if (userSelect) userSelect.value = appData.currentUser;
-      if (userPassword) userPassword.value = "";
+      const userNameInput = document.getElementById("user-name");
+      if (userNameInput) userNameInput.value = "";
     });
   }
 
-  if (loginSubmit && userSelect && userPassword) {
-    loginSubmit.addEventListener("click", async () => {
-      const u = userSelect.value;
-      const pw = userPassword.value;
-      const ok = await verifyUserPassword(u, pw);
-      if (ok) {
+  (function wireNameLogin() {
+    const btn = document.getElementById("login-submit");
+    const inp = document.getElementById("user-name");
+    if (btn && inp) {
+      btn.addEventListener("click", () => {
+        const name = (inp.value || "").trim().toLowerCase();
+        if (!name) {
+          alert("Enter your name");
+          return;
+        }
+        if (name !== "moka" && name !== "aser" && name !== "sila") {
+          alert("Wrong name");
+          return;
+        }
         loginModal.style.display = "none";
-        switchUser(u);
-      } else {
-        alert("Wrong password");
-      }
-    });
-  }
+        switchUser(name);
+      });
+    }
+  })();
 
   if (openAdminBtn) {
     openAdminBtn.addEventListener("click", () => {
@@ -1581,14 +1807,64 @@ document.addEventListener("DOMContentLoaded", () => {
         (arr[boosts.rewardIndex] || 0) * boosts.multiplier
       );
     }
-    // Zero-out one-time rewards (hard/superhard) already won permanently
-    const types = d.rewardTypes || appData.rewardTypes || [];
-    const wins = d.permanentWins || appData.permanentWins || [];
-    wins.forEach((ri) => {
-      const t = types[ri] || defaultTypeForIndex(ri);
-      if (t === "hard" || t === "superhard") arr[ri] = 0;
-    });
+    // Do NOT zero-out weights for one-time rewards; allow drawing tiles
+    // The completion is blocked in draw flow to enforce one-time win
     return arr;
+  }
+
+  function pickOrGetBlockedSlotForReward(index, reason) {
+    // reason: 'threshold' | 'permanent'
+    const arr =
+      reason === "threshold"
+        ? appData.thresholdBlockedSlots
+        : appData.permanentBlockedSlots;
+    if (arr[index] !== null && typeof arr[index] === "number")
+      return arr[index];
+    // pick one missing slot to block; prefer a currently missing slot for subtlety
+    const missing = [];
+    for (let i = 0; i < SLOTS_PER_GAME; i++) {
+      if (!appData.games[index].slots[i]) missing.push(i);
+    }
+    const chosen =
+      missing.length > 0
+        ? missing[Math.floor(Math.random() * missing.length)]
+        : Math.floor(Math.random() * SLOTS_PER_GAME);
+    arr[index] = chosen;
+    saveData();
+    return chosen;
+  }
+
+  function getEffectiveSlotWeightsForReward(index) {
+    // Start with base weights
+    const base = appData.slotWeights[index] || Array(SLOTS_PER_GAME).fill(1);
+    const out = base.slice();
+
+    // Compute type and status
+    const d = loadUserData(appData.currentUser) || {};
+    const types = d.rewardTypes || appData.rewardTypes || [];
+    const t = types[index] || defaultTypeForIndex(index);
+    const wins = d.permanentWins || appData.permanentWins || [];
+    const spent = appData.pointsSpent || 0;
+    const threshold =
+      t === "superhard" ? 2000 : t === "hard" ? 1000 : t === "normal" ? 500 : 0;
+
+    // If one-time already won, block one slot programmatically (invisible)
+    if ((t === "hard" || t === "superhard") && wins.includes(index)) {
+      const blockIdx = pickOrGetBlockedSlotForReward(index, "permanent");
+      out[blockIdx] = 0;
+    }
+
+    // If below threshold, block one slot programmatically (invisible)
+    if (threshold > 0 && spent < threshold) {
+      const blockIdx = pickOrGetBlockedSlotForReward(index, "threshold");
+      out[blockIdx] = 0;
+    } else {
+      // Above threshold: clear threshold block for this reward
+      appData.thresholdBlockedSlots[index] = null;
+      saveData();
+    }
+
+    return out;
   }
 
   function decrementBoostIfActive() {
@@ -1617,9 +1893,14 @@ document.addEventListener("DOMContentLoaded", () => {
   async function ensureAdminHash() {
     let h = localStorage.getItem(ADMIN_HASH_KEY);
     if (!h) {
-      // Initialize with a random one-time setup hash if none is present
-      const randomInit = Math.random().toString(36).slice(2) + Date.now();
-      h = await sha256Hex(ADMIN_SALT + randomInit);
+      // On localhost/127.0.0.1, default admin password = 'semsem50' (stored as salted SHA-256);
+      // elsewhere, initialize with a random one-time hash so no plaintext exists in production.
+      const host = location && location.hostname ? location.hostname : "";
+      const defaultPwd =
+        host === "localhost" || host === "127.0.0.1"
+          ? "semsem50"
+          : Math.random().toString(36).slice(2) + Date.now();
+      h = await sha256Hex(ADMIN_SALT + defaultPwd);
       localStorage.setItem(ADMIN_HASH_KEY, h);
     }
     return h;
@@ -1812,8 +2093,8 @@ document.addEventListener("DOMContentLoaded", () => {
       adminModal.style.display = "none";
       if (loginModal) {
         loginModal.style.display = "flex";
-        if (userSelect) userSelect.value = appData.currentUser;
-        if (userPassword) userPassword.value = "";
+        const userNameInput = document.getElementById("user-name");
+        if (userNameInput) userNameInput.value = "";
       }
     });
   }

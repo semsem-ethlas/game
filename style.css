@@ -294,6 +294,84 @@ header h1 {
   animation: shake 0.5s;
 }
 
+/* Toast notifications */
+#toast-container {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none; /* prevent stealing clicks */
+}
+
+.toast {
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none; /* keep non-interactive */
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.toast.success {
+  background: #2e7d32;
+}
+.toast.duplicate {
+  background: #ef6c00;
+}
+.toast.complete {
+  background: #5e35b1;
+}
+.toast.nopoints {
+  background: #c62828;
+}
+.toast.info {
+  background: #1565c0;
+}
+
+/* Draw button feedback */
+#draw-coupon-button.no-points {
+  filter: grayscale(0.4);
+  opacity: 0.85;
+}
+
+#draw-coupon-button.nopoints {
+  animation: btn-nopoints 600ms ease;
+}
+
+@keyframes btn-nopoints {
+  0% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
 /* Modal styles */
 .modal {
   display: none;
@@ -337,6 +415,16 @@ header h1 {
   font-size: 0.8rem;
   color: #fff;
   background-color: #4caf50;
+  border-radius: 12px;
+}
+
+.badge-locked {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  color: #fff;
+  background-color: #f44336;
   border-radius: 12px;
 }
 

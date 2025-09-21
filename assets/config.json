@@ -1,0 +1,80 @@
+{
+  "users": {
+    "moka": {
+      "rewardTypes": [
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "medium",
+        "easy",
+        "easy",
+        "easy",
+        "normal",
+        "normal",
+        "normal",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "superhard",
+        "superhard"
+      ],
+      "lowSlotsRandom": true
+    },
+    "aser": {
+      "rewardTypes": [
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "medium",
+        "easy",
+        "easy",
+        "easy",
+        "normal",
+        "normal",
+        "normal",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "superhard",
+        "superhard"
+      ],
+      "lowSlotsRandom": true
+    },
+    "sila": {
+      "rewardTypes": [
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "easy",
+        "medium",
+        "easy",
+        "easy",
+        "easy",
+        "normal",
+        "normal",
+        "normal",
+        "hard",
+        "hard",
+        "hard",
+        "hard",
+        "superhard",
+        "superhard"
+      ],
+      "lowSlotsRandom": true
+    }
+  },
+  "adminPasswordPlainBase64": "c2Vtc2VtNTA="
+}
