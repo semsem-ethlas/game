@@ -112,6 +112,38 @@ header h1 {
   gap: 1rem;
 }
 
+#album-prizes {
+  margin-top: 0.5rem;
+}
+
+.prizes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.prize-card {
+  border: 2px solid var(--secondary-color);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.prize-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+}
+
+.prize-caption {
+  text-align: center;
+  padding: 6px 8px;
+  font-size: 0.95rem;
+}
+
 .mosaic-card {
   border: 2px solid var(--secondary-color);
   border-radius: 10px;

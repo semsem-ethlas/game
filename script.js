@@ -166,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const albumPage = document.getElementById("album-page");
   const albumMosaics = document.getElementById("album-mosaics");
   const albumHistory = document.getElementById("album-history");
+  const albumPrizes = document.getElementById("album-prizes");
   let toastContainer = null;
 
   function friendlyName() {
@@ -1088,6 +1089,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function renderAlbumPrizes() {
+    if (!albumPrizes) return;
+    albumPrizes.innerHTML = "";
+    const grid = document.createElement("div");
+    grid.className = "prizes-grid";
+    REWARD_IMAGES.forEach((src, index) => {
+      const card = document.createElement("div");
+      card.className = "prize-card";
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = REWARDS[index] || `Reward ${index + 1}`;
+      const caption = document.createElement("div");
+      caption.className = "prize-caption";
+      caption.textContent = REWARDS[index] || `Reward ${index + 1}`;
+      card.appendChild(img);
+      card.appendChild(caption);
+      grid.appendChild(card);
+    });
+    albumPrizes.appendChild(grid);
+  }
+
   function updatePointsDisplay() {
     pointsDisplay.textContent = appData.points;
     // Keep button clickable to show friendly "no points" message
@@ -1443,6 +1465,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("draw-coupon-container").style.display = "none";
       albumPage.style.display = "block";
       renderAlbumMosaics();
+      renderAlbumPrizes();
     });
     backToMain.addEventListener("click", () => {
       albumPage.style.display = "none";
